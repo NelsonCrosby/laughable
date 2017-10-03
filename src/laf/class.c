@@ -146,7 +146,7 @@ int laf_pnewhk(lua_State *L, int clsidx, int nargs,
     lua_pushcfunction(L, l_new);
     lua_pushvalue(L, clsidx);
 
-    int status = lua_pcall(L, 1, 1);
+    int status = laf_pcall(L, 1, 1);
     lua_insert(L, -(nargs + 1));
 
     if (status) {

@@ -37,11 +37,8 @@ int main(int argc, char **argv)
     if (laf_pcall(L, 2, 1))
         goto _err;
 
-    if (lua_isnil(L, -1))
-        return 0;
-    else
-        return lua_tonumber(L, -1);
+    return lua_tointeger(L, -1);
 _err:
     fprintf(stderr, "%s\n", lua_tostring(L, -1));
-    return 1;
+    return -1;
 }
