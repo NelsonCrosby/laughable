@@ -1,0 +1,19 @@
+
+targets:
+
+  - name: laf
+    out: liblaf.so
+    cflags: [ -fPIC, -g ]
+    ldflags: [ -shared ]
+    ldlibs: [ -llua ]
+    sources:
+      - util
+      - class
+
+  - name: laugh_test
+    depend: [ laf ]
+    cflags: [ -g ]
+    ldlibs: [ -llua ]
+    sources:
+      - main
+      - foo
