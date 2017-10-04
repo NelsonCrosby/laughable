@@ -1,6 +1,6 @@
 
-#include "util.h"
 #include "class.h"
+#include "util.h"
 
 
 static int l_new(lua_State *L);
@@ -89,10 +89,11 @@ void laf_newk(lua_State *L, int clsidx, int nargs,
     lua_callk(L, nargs, 1, ctx, k);
 }
 
+// TODO: Macro-ify laf_pnew*
 int laf_pnew(lua_State *L, int clsidx, int nargs, int msgh)
 {
     lua_pushcfunction(L, l_new);
-    lua_pushvalue(L, clsidx);
+    lua_pushvalue(L, clsidx < 0 ? clsidx - 1 : clsidx);
 
     int status = lua_pcall(L, 1, 1, msgh);
     lua_insert(L, -(nargs + 1));
@@ -102,15 +103,14 @@ int laf_pnew(lua_State *L, int clsidx, int nargs, int msgh)
         return status;
     }
 
-    status = lua_pcall(L, nargs, 1, msgh);
-    return status;
+    return lua_pcall(L, nargs, 1, msgh);
 }
 
 int laf_pnewk(lua_State *L, int clsidx, int nargs, int msgh,
               lua_KContext ctx, lua_KFunction k)
 {
     lua_pushcfunction(L, l_new);
-    lua_pushvalue(L, clsidx);
+    lua_pushvalue(L, clsidx < 0 ? clsidx - 1 : clsidx);
 
     int status = lua_pcall(L, 1, 1, msgh);
     lua_insert(L, -(nargs + 1));
@@ -126,9 +126,9 @@ int laf_pnewk(lua_State *L, int clsidx, int nargs, int msgh,
 int laf_pnewh(lua_State *L, int clsidx, int nargs)
 {
     lua_pushcfunction(L, l_new);
-    lua_pushvalue(L, clsidx);
+    lua_pushvalue(L, clsidx < 0 ? clsidx - 1 : clsidx);
 
-    int status = laf_pcall(L, 1, 1);
+    int status = laf_pcallh(L, 1, 1);
     lua_insert(L, -(nargs + 1));
 
     if (status) {
@@ -136,17 +136,16 @@ int laf_pnewh(lua_State *L, int clsidx, int nargs)
         return status;
     }
 
-    status = laf_pcall(L, nargs, 1);
-    return status;
+    return laf_pcallh(L, nargs, 1);
 }
 
 int laf_pnewhk(lua_State *L, int clsidx, int nargs,
                lua_KContext ctx, lua_KFunction k)
 {
     lua_pushcfunction(L, l_new);
-    lua_pushvalue(L, clsidx);
+    lua_pushvalue(L, clsidx < 0 ? clsidx - 1 : clsidx);
 
-    int status = laf_pcall(L, 1, 1);
+    int status = laf_pcallh(L, 1, 1);
     lua_insert(L, -(nargs + 1));
 
     if (status) {
@@ -154,15 +153,10 @@ int laf_pnewhk(lua_State *L, int clsidx, int nargs,
         return status;
     }
 
-    return laf_pcallk(L, nargs, 1, ctx, k);
+    return laf_pcallhk(L, nargs, 1, ctx, k);
 }
 
 
-/* Implements `require('class')`.
- * Returns `new`. Also sets the global `new`.
- * There should be no need to use `require('class')`,
- * as it is typically called by Laughable's init code
- * before running any Lua code. */
 int luaopen_class(lua_State *L)
 {
     static luaL_Reg new_l[] = {
@@ -213,7 +207,7 @@ static int l_ctor(lua_State *L)
     lua_setmetatable(L, 1);
 
     /* The following code is essentially equivalent to
-    lua_callmsk(L, 1, "init", lua_gettop(L) - 1, 0, 2, l_ctor_k);
+    laf_callmsk(L, 1, "init", lua_gettop(L) - 1, 0, 2, l_ctor_k);
     return l_ctor_k(L, LUA_OK, 1);
      * except it also checks whether o.init exists before trying to call
      * it. If you are implementing your own constructor and you know you
@@ -228,7 +222,7 @@ static int l_ctor(lua_State *L)
     } else {
         lua_insert(L, 2);
         // > o.init(o, ...)
-        lua_callmfk(L, 1,
+        laf_callmfk(L, 1,
                     lua_gettop(L) - 2, 0,
         // goto l_ctor_k
                     2, l_ctor_k);
@@ -251,8 +245,8 @@ static int l_ctor_k(lua_State *L, int status, lua_KContext ctx)
 // underlying call after nret.
 
 // This macro implements the *callmf functions
-//  (lua_callmf, lua_callmfk, lua_pcallmf, lua_pcallmfk,
-//      laf_pcallmf, laf_pkcallmfk).
+//  (laf_callmf, laf_callmfk, laf_pcallmf, laf_pcallmfk,
+//      laf_pcallmfh, laf_pcallmfhk).
 // It pushes a copy of the object at oidx into the right
 // location before calling the method.
 #define CALLMF(call, ...)           \
@@ -282,115 +276,115 @@ static int l_ctor_k(lua_State *L, int status, lua_KContext ctx)
     call(L, oidx < 0 ? oidx - 1 : oidx, nargs, nret, ##__VA_ARGS__);    \
 }
 
-void lua_callmf(lua_State *L, int oidx,
+void laf_callmf(lua_State *L, int oidx,
                 int nargs, int nret)
     CALLMF(lua_call)
 
-void lua_callm(lua_State *L, int oidx,
+void laf_callm(lua_State *L, int oidx,
                int nargs, int nret)
     CALLM(lua_call)
 
-void lua_callms(lua_State *L, int oidx, const char *method,
+void laf_callms(lua_State *L, int oidx, const char *method,
                 int nargs, int nret)
-    CALLM_(lua_pushstring, lua_callm)
+    CALLM_(lua_pushstring, laf_callm)
 
-void lua_callmv(lua_State *L, int oidx, void *method,
+void laf_callmv(lua_State *L, int oidx, void *method,
                 int nargs, int nret)
-    CALLM_(lua_pushlightuserdata, lua_callm)
+    CALLM_(lua_pushlightuserdata, laf_callm)
 
 
-void lua_callmfk(lua_State *L, int oidx,
+void laf_callmfk(lua_State *L, int oidx,
                  int nargs, int nret,
                  lua_KContext ctx, lua_KFunction k)
     CALLMF(lua_callk, ctx, k)
 
-void lua_callmk(lua_State *L, int oidx,
+void laf_callmk(lua_State *L, int oidx,
                 int nargs, int nret,
                 lua_KContext ctx, lua_KFunction k)
     CALLM(lua_callk, ctx, k)
 
-void lua_callmsk(lua_State *L, int oidx, const char *method,
+void laf_callmsk(lua_State *L, int oidx, const char *method,
                  int nargs, int nret,
                  lua_KContext ctx, lua_KFunction k)
-    CALLM_(lua_pushstring, lua_callmk, ctx, k)
+    CALLM_(lua_pushstring, laf_callmk, ctx, k)
 
-void lua_callmvk(lua_State *L, int oidx, void *method,
+void laf_callmvk(lua_State *L, int oidx, void *method,
                  int nargs, int nret,
                  lua_KContext ctx, lua_KFunction k)
-    CALLM_(lua_pushlightuserdata, lua_callmk, ctx, k)
+    CALLM_(lua_pushlightuserdata, laf_callmk, ctx, k)
 
 
-int lua_pcallmf(lua_State *L, int oidx,
+int laf_pcallmf(lua_State *L, int oidx,
                 int nargs, int nret, int msgh)
     CALLMF(return lua_pcall, msgh)
 
-int lua_pcallm(lua_State *L, int oidx,
+int laf_pcallm(lua_State *L, int oidx,
                int nargs, int nret, int msgh)
     CALLM(return lua_pcall, msgh)
 
-int lua_pcallms(lua_State *L, int oidx, const char *method,
+int laf_pcallms(lua_State *L, int oidx, const char *method,
                 int nargs, int nret, int msgh)
-    CALLM_(lua_pushstring, return lua_pcallm, msgh)
+    CALLM_(lua_pushstring, return laf_pcallm, msgh)
 
-int lua_pcallmv(lua_State *L, int oidx, void *method,
+int laf_pcallmv(lua_State *L, int oidx, void *method,
                 int nargs, int nret, int msgh)
-    CALLM_(lua_pushlightuserdata, return lua_pcallm, msgh)
+    CALLM_(lua_pushlightuserdata, return laf_pcallm, msgh)
 
 
-int lua_pcallmfk(lua_State *L, int oidx,
+int laf_pcallmfk(lua_State *L, int oidx,
                  int nargs, int nret, int msgh,
                  lua_KContext ctx, lua_KFunction k)
     CALLMF(return lua_pcallk, msgh, ctx, k)
 
-int lua_pcallmk(lua_State *L, int oidx,
+int laf_pcallmk(lua_State *L, int oidx,
                 int nargs, int nret, int msgh,
                 lua_KContext ctx, lua_KFunction k)
     CALLM(return lua_pcallk, msgh, ctx, k)
 
-int lua_pcallmsk(lua_State *L, int oidx, const char *method,
-                 int nargs, int nret, int msgh,
-                 lua_KContext ctx, lua_KFunction k)
-    CALLM_(lua_pushstring, return lua_pcallmk, msgh, ctx, k)
-
-int lua_pcallmvk(lua_State *L, int oidx, void *method,
-                 int nargs, int nret, int msgh,
-                 lua_KContext ctx, lua_KFunction k)
-    CALLM_(lua_pushlightuserdata, return lua_pcallmk, msgh, ctx, k)
-
-
-int laf_pcallmf(lua_State *L, int oidx,
-                int nargs, int nret)
-    CALLMF(return laf_pcall)
-
-int laf_pcallm(lua_State *L, int oidx,
-               int nargs, int nret)
-    CALLM(return laf_pcall)
-
-int laf_pcallms(lua_State *L, int oidx, const char *method,
-                int nargs, int nret)
-    CALLM_(lua_pushstring, return laf_pcallm)
-
-int laf_pcallmv(lua_State *L, int oidx, void *method,
-                int nargs, int nret)
-    CALLM_(lua_pushlightuserdata, return laf_pcallm)
-
-
-int laf_pcallmfk(lua_State *L, int oidx,
-                 int nargs, int nret,
-                 lua_KContext ctx, lua_KFunction k)
-    CALLMF(return laf_pcallk, ctx, k)
-
-int laf_pcallmk(lua_State *L, int oidx,
-                int nargs, int nret,
-                lua_KContext ctx, lua_KFunction k)
-    CALLM(return laf_pcallk, ctx, k)
-
 int laf_pcallmsk(lua_State *L, int oidx, const char *method,
                  int nargs, int nret, int msgh,
                  lua_KContext ctx, lua_KFunction k)
-    CALLM_(lua_pushstring, return laf_pcallmk, ctx, k)
+    CALLM_(lua_pushstring, return laf_pcallmk, msgh, ctx, k)
 
 int laf_pcallmvk(lua_State *L, int oidx, void *method,
                  int nargs, int nret, int msgh,
                  lua_KContext ctx, lua_KFunction k)
-    CALLM_(lua_pushlightuserdata, return laf_pcallmk, ctx, k)
+    CALLM_(lua_pushlightuserdata, return laf_pcallmk, msgh, ctx, k)
+
+
+int laf_pcallmfh(lua_State *L, int oidx,
+                 int nargs, int nret)
+    CALLMF(return laf_pcallh)
+
+int laf_pcallmh(lua_State *L, int oidx,
+                int nargs, int nret)
+    CALLM(return laf_pcallh)
+
+int laf_pcallmsh(lua_State *L, int oidx, const char *method,
+                 int nargs, int nret)
+    CALLM_(lua_pushstring, return laf_pcallmh)
+
+int laf_pcallmvh(lua_State *L, int oidx, void *method,
+                 int nargs, int nret)
+    CALLM_(lua_pushlightuserdata, return laf_pcallmh)
+
+
+int laf_pcallmfhk(lua_State *L, int oidx,
+                  int nargs, int nret,
+                  lua_KContext ctx, lua_KFunction k)
+    CALLMF(return laf_pcallhk, ctx, k)
+
+int laf_pcallmhk(lua_State *L, int oidx,
+                 int nargs, int nret,
+                 lua_KContext ctx, lua_KFunction k)
+    CALLM(return laf_pcallhk, ctx, k)
+
+int laf_pcallmshk(lua_State *L, int oidx, const char *method,
+                  int nargs, int nret, int msgh,
+                  lua_KContext ctx, lua_KFunction k)
+    CALLM_(lua_pushstring, return laf_pcallmhk, ctx, k)
+
+int laf_pcallmvhk(lua_State *L, int oidx, void *method,
+                  int nargs, int nret, int msgh,
+                  lua_KContext ctx, lua_KFunction k)
+    CALLM_(lua_pushlightuserdata, return laf_pcallmhk, ctx, k)

@@ -3,31 +3,67 @@
 
 #include <lua.h>
 #include <lauxlib.h>
+#include <lualib.h>
 
+#include "class.h"
 #include "util.h"
 
-void laf_newmodule(lua_State *L, const char *modname, int openidx)
+
+#if LUA_KCONTEXT != intptr_t
+#error "laf_pcallhk requires that lua_KContext is an intptr_t"
+#endif
+
+
+lua_State *laf_newstate(lua_Alloc f, void *ud)
 {
+    lua_State *L = f
+        ? lua_newstate(f, ud)
+        : luaL_newstate();
+    laf_init(L);
+    return L;
+}
+
+void laf_init(lua_State *L)
+{
+    // This isn't optimization! Well, it might be, but more
+    // importantly it's about making sure someone doesn't
+    // accidentally break things by putting something else
+    // in these variables.
+    // Cache package.preload for laf_newmodule
     lua_getglobal(L, "package");
-    lua_getfield(L, -1, "preload");
-    lua_pushvalue(L, openidx < 0 ? openidx - 2 : openidx);
+    lua_getfield(L, -2, "preload");
+    lua_rawsetp(L, LUA_REGISTRYINDEX, laf_newmodule);
+    lua_pop(L, 1);
+    // Cache require for laf_require
+    lua_pushlightuserdata(L, laf_require);
+    lua_getglobal(L, "require");
+    lua_settable(L, LUA_REGISTRYINDEX);
+
+    luaL_openlibs(L);
+
+    // Set up class module and require it to put `new` into
+    // the global namespace immediately.
+    laf_newmod(L, "class", luaopen_class);
+    laf_require(L, "class");
+    lua_pop(L, 1);
+}
+
+
+void laf_newmodule(lua_State *L, const char *modname)
+{
+    // Put the loader function into package.preload
+    // (cached at _REG[laf_newmodule])
+    lua_rawgetp(L, LUA_REGISTRYINDEX, laf_newmodule);
+    lua_insert(L, -2);
     lua_setfield(L, -2, modname);
-    lua_pop(L, 2);
-}
-
-void laf_newmod(lua_State *L, const char *modname, lua_CFunction open)
-{
-    lua_pushcfunction(L, open);
-    laf_newmodule(L, modname, -1);
     lua_pop(L, 1);
 }
 
-void laf_newmodclosure(lua_State *L, const char *modname,
-                       lua_CFunction open, int nup)
+void laf_require(lua_State *L, const char *modname)
 {
-    lua_pushcclosure(L, open, nup);
-    laf_newmodule(L, modname, -1);
-    lua_pop(L, 1);
+    lua_rawgetp(L, LUA_REGISTRYINDEX, laf_require);
+    lua_pushstring(L, modname);
+    lua_call(L, 1, 1);
 }
 
 
@@ -37,7 +73,7 @@ int laf_msgh(lua_State *L)
     return 1;
 }
 
-int laf_pcall(lua_State *L, int nargs, int nret)
+int laf_pcallh(lua_State *L, int nargs, int nret)
 {
     lua_pushcfunction(L, laf_msgh);
     lua_insert(L, 1);
@@ -51,9 +87,9 @@ typedef struct {
     lua_KFunction k;
 } laf_msgh_ctx_t;
 
-static int laf_pcallk_k(lua_State *L, int status, lua_KContext ctx);
+static int laf_pcallhk_k(lua_State *L, int status, lua_KContext ctx);
 
-int laf_pcallk(lua_State *L, int nargs, int nret,
+int laf_pcallhk(lua_State *L, int nargs, int nret,
                lua_KContext ctx, lua_KFunction k)
 {
     laf_msgh_ctx_t *lctx = malloc(sizeof (laf_msgh_ctx_t));
@@ -62,12 +98,12 @@ int laf_pcallk(lua_State *L, int nargs, int nret,
 
     lua_pushcfunction(L, laf_msgh);
     lua_insert(L, 1);
-    int status = lua_pcallk(L, nargs, nret, 1, (lua_KContext) lctx, laf_pcallk_k);
+    int status = lua_pcallk(L, nargs, nret, 1, (lua_KContext) lctx, laf_pcallhk_k);
     lua_remove(L, 1);
     return status;
 }
 
-static int laf_pcallk_k(lua_State *L, int status, lua_KContext ctx)
+static int laf_pcallhk_k(lua_State *L, int status, lua_KContext ctx)
 {
     lua_remove(L, 1);
     laf_msgh_ctx_t *lctx = (laf_msgh_ctx_t *) ctx;

@@ -2,12 +2,10 @@
 #include <stdio.h>
 
 #include <lua.h>
-#include <lualib.h>
 #include <lauxlib.h>
 
 #include "laf/util.h"
 #include "laf/class.h"
-#include "foo.h"
 
 
 int luaopen_foo(lua_State *L);
@@ -15,15 +13,14 @@ int luaopen_foo(lua_State *L);
 
 int main(int argc, char **argv)
 {
-    lua_State *L = luaL_newstate();
-    luaL_openlibs(L);
-    luaopen_class(L);
-    laf_newmod(L, "foo", luaopen_foo);
+    lua_State *L = laf_newstate_m();
+    lua_pushcfunction(L, luaopen_foo)
+    laf_newmodule(L, "foo");
 
     if (luaL_loadfile(L, "lua/laugh_test/main.lua"))
         goto _err;
     
-    if (laf_pcall(L, 0, 1))
+    if (laf_pcallh(L, 0, 1))
         goto _err;
 
     lua_pushstring(L, argv[0]);
@@ -34,7 +31,7 @@ int main(int argc, char **argv)
         lua_rawseti(L, -2, i);
     }
 
-    if (laf_pcall(L, 2, 1))
+    if (laf_pcallh(L, 2, 1))
         goto _err;
 
     return lua_tointeger(L, -1);
