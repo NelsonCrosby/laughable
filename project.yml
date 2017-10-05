@@ -7,8 +7,8 @@ targets:
     ldflags: [ -shared ]
     ldlibs: [ -llua ]
     sources:
-      - util
-      - class
+      - core/util
+      - core/class
 
   - name: laugh_test
     depend: [ laf ]

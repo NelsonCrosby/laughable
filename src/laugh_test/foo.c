@@ -2,7 +2,7 @@
 #include <lua.h>
 #include <lauxlib.h>
 
-#include "laf/class.h"
+#include "laf.h"
 
 
 static int foo_init(lua_State *L);

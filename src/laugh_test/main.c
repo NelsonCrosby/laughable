@@ -4,8 +4,7 @@
 #include <lua.h>
 #include <lauxlib.h>
 
-#include "laf/util.h"
-#include "laf/class.h"
+#include "laf.h"
 
 
 int luaopen_foo(lua_State *L);
