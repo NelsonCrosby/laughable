@@ -6,6 +6,8 @@ targets:
     cflags: [ -fPIC, -g ]
     ldflags: [ -shared ]
     ldlibs: [ -llua ]
+    subdirs:
+      - core
     sources:
       - core/util
       - core/class

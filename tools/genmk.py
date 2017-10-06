@@ -48,7 +48,7 @@ Makefile: $(TOPDIR)/project.yml $(TOPDIR)/conf.yml $(TOPDIR)/tools/genmk.py
 
 {name}: {name}_DIRS $({name}_DEP) $({name}_OUT)
 {name}_DIRS:
-{tab}mkdir -pv $(BUILDDIR) $({name}_OUTDIR)
+{tab}mkdir -pv $(BUILDDIR) $({name}_OUTDIR) {t[subdirs]}
 .PHONY: {name} {name}_DIRS
 
 $({name}_OUT): $({name}_O) $({name}_DEPFILES)
@@ -87,10 +87,13 @@ with open(os.path.join('Makefile'), 'w') as wf:
 
     for target in project['targets']:
         name = target['name']
+        toutdir = os.path.join(builddir, 'out', name)
         t = {
             'srcdir': os.path.join(srcdir, name),
-            'outdir': os.path.join(builddir, 'out', name),
+            'outdir': toutdir,
             'files': ' '.join(target['sources']),
+            'subdirs': ' '.join(os.path.join(toutdir, subdir)
+                                for subdir in target.get('subdirs', [])),
             'out': target.get('out', name),
             'dep': ' '.join(target.get('depend', [])),
             'depfiles': ' '.join('$(%s_OUT)' % dep

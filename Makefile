@@ -26,7 +26,7 @@ laf_DEP =
 laf_DEPFILES = 
 laf_OUTDIR = build/out/laf
 laf_SRCDIR = src/laf
-laf_FILES = util class
+laf_FILES = core/util core/class evl/queue
 laf_C = $(laf_FILES:%=$(laf_SRCDIR)/%.c)
 laf_O = $(laf_FILES:%=$(laf_OUTDIR)/%.o)
 laf_D = $(laf_O:.o=.d)
@@ -36,7 +36,7 @@ laf_LDLIBS = -llua
 
 laf: laf_DIRS $(laf_DEP) $(laf_OUT)
 laf_DIRS:
-	mkdir -pv $(BUILDDIR) $(laf_OUTDIR)
+	mkdir -pv $(BUILDDIR) $(laf_OUTDIR) build/out/laf/core build/out/laf/evl
 .PHONY: laf laf_DIRS
 
 $(laf_OUT): $(laf_O) $(laf_DEPFILES)
@@ -66,7 +66,7 @@ laugh_test_LDLIBS = -llua
 
 laugh_test: laugh_test_DIRS $(laugh_test_DEP) $(laugh_test_OUT)
 laugh_test_DIRS:
-	mkdir -pv $(BUILDDIR) $(laugh_test_OUTDIR)
+	mkdir -pv $(BUILDDIR) $(laugh_test_OUTDIR) 
 .PHONY: laugh_test laugh_test_DIRS
 
 $(laugh_test_OUT): $(laugh_test_O) $(laugh_test_DEPFILES)
