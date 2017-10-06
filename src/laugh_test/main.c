@@ -13,7 +13,7 @@ int luaopen_foo(lua_State *L);
 int main(int argc, char **argv)
 {
     lua_State *L = laf_newstate_m();
-    lua_pushcfunction(L, luaopen_foo)
+    lua_pushcfunction(L, luaopen_foo);
     laf_newmodule(L, "foo");
 
     if (luaL_loadfile(L, "lua/laugh_test/main.lua"))

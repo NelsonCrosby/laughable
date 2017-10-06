@@ -25,25 +25,25 @@ lua_State *laf_newstate(lua_Alloc f, void *ud)
 
 void laf_init(lua_State *L)
 {
+    luaL_openlibs(L);
+
     // This isn't optimization! Well, it might be, but more
     // importantly it's about making sure someone doesn't
     // accidentally break things by putting something else
     // in these variables.
     // Cache package.preload for laf_newmodule
     lua_getglobal(L, "package");
-    lua_getfield(L, -2, "preload");
+    lua_getfield(L, -1, "preload");
     lua_rawsetp(L, LUA_REGISTRYINDEX, laf_newmodule);
     lua_pop(L, 1);
     // Cache require for laf_require
-    lua_pushlightuserdata(L, laf_require);
     lua_getglobal(L, "require");
-    lua_settable(L, LUA_REGISTRYINDEX);
-
-    luaL_openlibs(L);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, laf_require);
 
     // Set up class module and require it to put `new` into
     // the global namespace immediately.
-    laf_newmod(L, "class", luaopen_class);
+    lua_pushcfunction(L, luaopen_class);
+    laf_newmodule(L, "class");
     laf_require(L, "class");
     lua_pop(L, 1);
 }
