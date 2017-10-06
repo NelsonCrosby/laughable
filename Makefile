@@ -26,7 +26,7 @@ laf_DEP =
 laf_DEPFILES = 
 laf_OUTDIR = build/out/laf
 laf_SRCDIR = src/laf
-laf_FILES = core/util core/class evl/queue
+laf_FILES = core/util core/class evl/evloop
 laf_C = $(laf_FILES:%=$(laf_SRCDIR)/%.c)
 laf_O = $(laf_FILES:%=$(laf_OUTDIR)/%.o)
 laf_D = $(laf_O:.o=.d)
